@@ -20,6 +20,8 @@ const (
 
 	clauseToken
 	clauseCloseToken
+
+	esQueryToken
 )
 
 /*
