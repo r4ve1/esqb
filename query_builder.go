@@ -38,10 +38,10 @@ func NewQueryBuilder(expr string, queryFactory map[string]map[Operator]QueryGene
 }
 
 func (it *queryBuilder) Build() (elastic.Query, error) {
-	var stack []interface{}
+	var stack []expressionToken
 	for _, token := range it.suffixTokens {
 		if !token.isOperator() {
-			stack = append(stack, token.Value)
+			stack = append(stack, token)
 		} else {
 			if len(stack) < 2 {
 				return nil, errors.New("missing operands")
@@ -52,39 +52,23 @@ func (it *queryBuilder) Build() (elastic.Query, error) {
 			if err != nil {
 				return nil, err
 			}
-			stack = append(stack, query)
+			stack = append(stack, expressionToken{Kind: esQueryToken, Value: query})
 		}
 	}
 	if len(stack) != 1 {
 		return nil, errors.New("query build failed")
 	} else {
-		return stack[len(stack)-1].(elastic.Query), nil
+		return stack[len(stack)-1].Value.(elastic.Query), nil
 	}
 }
 
-func (it *queryBuilder) genQuery(left, right interface{}, opToken string) (elastic.Query, error) {
+func (it *queryBuilder) genQuery(left, right expressionToken, opToken string) (elastic.Query, error) {
 	if op, ok := comparatorSymbols[opToken]; ok {
 		// if comparator, then left should be field tag
-		var err error
-		try := func(l, r interface{}) bool {
-			if _, ok := l.(string); !ok {
-				err = errors.New("operand type error")
-				return false
-			}
-			field := l.(string)
-			if _, ok = it.queryFactory[field]; !ok {
-				err = fmt.Errorf("query builder does not support field [%s]", field)
-				return false
-			}
-			if _, ok = it.queryFactory[field][op]; !ok {
-				err = fmt.Errorf("query build does not support [%s] op on [%s] field", op.String(), field)
-				return false
-			}
-			return true
-		}
-		if try(left, right) {
-			return it.queryFactory[left.(string)][op](right), nil
-		} else if try(right, left) {
+		if left.Kind == variableToken {
+			field := left.Value.(string)
+			return skipIfFieldNotExist(field, it.queryFactory[field][op](right.Value)), nil
+		} else if right.Kind == variableToken {
 			switch op {
 			case LTE:
 				op = GTE
@@ -95,20 +79,21 @@ func (it *queryBuilder) genQuery(left, right interface{}, opToken string) (elast
 			case GT:
 				op = LT
 			}
-			return it.queryFactory[right.(string)][op](left), nil
+			field := right.Value.(string)
+			return skipIfFieldNotExist(field, it.queryFactory[field][op](left.Value)), nil
 		} else {
-			return nil, err
+			return nil, errors.New("field or value invalid")
 		}
 	} else if op, ok := logicalSymbols[opToken]; ok {
 		// if logical, left & right should all be elastic.Query
 		err := fmt.Errorf("operand beside [%s] should be booleanToken expression", op.String())
-		if _, ok = left.(elastic.Query); !ok {
+		if _, ok = left.Value.(elastic.Query); !ok {
 			return nil, err
 		}
-		if _, ok = right.(elastic.Query); !ok {
+		if _, ok = right.Value.(elastic.Query); !ok {
 			return nil, err
 		}
-		q1, q2 := left.(elastic.Query), right.(elastic.Query)
+		q1, q2 := left.Value.(elastic.Query), right.Value.(elastic.Query)
 		if op == and {
 			return elastic.NewBoolQuery().Must(q1, q2), nil
 		} else if op == or {
@@ -139,4 +124,8 @@ func RangeQueryGenerators(getBaseQuery func() *elastic.RangeQuery) map[Operator]
 			return getBaseQuery().Gte(value).Lte(value)
 		},
 	}
+}
+
+func skipIfFieldNotExist(field string, rawQuery elastic.Query) elastic.Query {
+	return elastic.NewBoolQuery().Should(rawQuery, elastic.NewBoolQuery().MustNot(elastic.NewExistsQuery(field)))
 }
