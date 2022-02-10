@@ -10,7 +10,7 @@ import (
 type queryGenerator func(value interface{}) elastic.Query
 
 type queryBuilder struct {
-	suffixTokens []ExpressionToken
+	suffixTokens []expressionToken
 	queryFactory map[string]map[Operator]queryGenerator
 }
 
@@ -101,7 +101,7 @@ func (it *queryBuilder) genQuery(left, right interface{}, opToken string) (elast
 		}
 	} else if op, ok := logicalSymbols[opToken]; ok {
 		// if logical, left & right should all be elastic.Query
-		err := fmt.Errorf("operand beside [%s] should be boolean expression", op.String())
+		err := fmt.Errorf("operand beside [%s] should be booleanToken expression", op.String())
 		if _, ok = left.(elastic.Query); !ok {
 			return nil, err
 		}
@@ -109,9 +109,9 @@ func (it *queryBuilder) genQuery(left, right interface{}, opToken string) (elast
 			return nil, err
 		}
 		q1, q2 := left.(elastic.Query), right.(elastic.Query)
-		if op == AND {
+		if op == and {
 			return elastic.NewBoolQuery().Must(q1, q2), nil
-		} else if op == OR {
+		} else if op == or {
 			return elastic.NewBoolQuery().Should(q1, q2), nil
 		} else {
 			return nil, fmt.Errorf("can't concat sub query, op is [%s]", op.String())
@@ -121,7 +121,7 @@ func (it *queryBuilder) genQuery(left, right interface{}, opToken string) (elast
 	}
 }
 
-func GetRangeFactory(getBaseQuery func() *elastic.RangeQuery) map[Operator]queryGenerator {
+func RangeQueryGenerators(getBaseQuery func() *elastic.RangeQuery) map[Operator]queryGenerator {
 	return map[Operator]queryGenerator{
 		LT: func(value interface{}) elastic.Query {
 			return getBaseQuery().Lt(value)

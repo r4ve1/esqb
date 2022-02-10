@@ -7,8 +7,7 @@ package esqb
 type Operator int
 
 const (
-	VALUE Operator = iota
-	LITERAL
+	value Operator = iota
 	EQ
 	NEQ
 	GT
@@ -16,12 +15,12 @@ const (
 	GTE
 	LTE
 
-	AND
-	OR
+	and
+	or
 
-	NEGATE
-	INVERT
-	BitwiseNot
+	negate
+	invert
+	bitwiseNot
 )
 
 const (
@@ -34,7 +33,7 @@ const (
 
 func (it Operator) precedence() int {
 	switch it {
-	case VALUE:
+	case value:
 		return valuePrecedence
 	case EQ:
 		fallthrough
@@ -46,15 +45,15 @@ func (it Operator) precedence() int {
 		fallthrough
 	case GTE:
 		return comparatorPrecedence
-	case AND:
+	case and:
 		return logicalAndPrecedence
-	case OR:
+	case or:
 		return logicalOrPrecedence
-	case BitwiseNot:
+	case bitwiseNot:
 		fallthrough
-	case NEGATE:
+	case negate:
 		fallthrough
-	case INVERT:
+	case invert:
 		return prefixPrecedence
 	}
 
@@ -76,8 +75,8 @@ var comparatorSymbols = map[string]Operator{
 }
 
 var logicalSymbols = map[string]Operator{
-	"&&": AND,
-	"||": OR,
+	"&&": and,
+	"||": or,
 }
 
 var operatorSymbols = map[string]Operator{
@@ -87,18 +86,18 @@ var operatorSymbols = map[string]Operator{
 	">=": GTE,
 	"<":  LT,
 	"<=": LTE,
-	"&&": AND,
-	"||": OR,
+	"&&": and,
+	"||": or,
 }
 
 var prefixSymbols = map[string]Operator{
-	"-": NEGATE,
-	"!": INVERT,
-	"~": BitwiseNot,
+	"-": negate,
+	"!": invert,
+	"~": bitwiseNot,
 }
 
 /*
-	Returns true if this operator is contained by the given array of candidate symbols.
+	Returns true if this Operator is contained by the given array of candidate symbols.
 	False otherwise.
 */
 func (it Operator) IsModifierType(candidate []Operator) bool {
@@ -121,8 +120,8 @@ func (it Operator) IsModifierType(candidate []Operator) bool {
 func (it Operator) String() string {
 
 	switch it {
-	case VALUE:
-		return "VALUE"
+	case value:
+		return "value"
 	case EQ:
 		return "="
 	case NEQ:
@@ -135,15 +134,15 @@ func (it Operator) String() string {
 		return ">="
 	case LTE:
 		return "<="
-	case AND:
+	case and:
 		return "&&"
-	case OR:
+	case or:
 		return "||"
-	case NEGATE:
+	case negate:
 		return "-"
-	case INVERT:
+	case invert:
 		return "!"
-	case BitwiseNot:
+	case bitwiseNot:
 		return "~"
 	}
 	return ""
