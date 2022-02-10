@@ -1,12 +1,12 @@
 package esqb
 
 type tokenStream struct {
-	tokens      []ExpressionToken
+	tokens      []expressionToken
 	index       int
 	tokenLength int
 }
 
-func newTokenStream(tokens []ExpressionToken) *tokenStream {
+func newTokenStream(tokens []expressionToken) *tokenStream {
 
 	var ret *tokenStream
 
@@ -20,9 +20,9 @@ func (it *tokenStream) rewind() {
 	it.index -= 1
 }
 
-func (it *tokenStream) next() ExpressionToken {
+func (it *tokenStream) next() expressionToken {
 
-	var token ExpressionToken
+	var token expressionToken
 
 	token = it.tokens[it.index]
 

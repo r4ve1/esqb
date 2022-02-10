@@ -9,10 +9,10 @@ import (
 	"unicode"
 )
 
-func scanTokens(expression string) ([]ExpressionToken, error) {
+func scanTokens(expression string) ([]expressionToken, error) {
 
-	var ret []ExpressionToken
-	var token ExpressionToken
+	var ret []expressionToken
+	var token expressionToken
 	var stream *lexerStream
 	var state lexerState
 	var err error
@@ -57,18 +57,18 @@ func scanTokens(expression string) ([]ExpressionToken, error) {
 	return ret, nil
 }
 
-func readToken(stream *lexerStream, state lexerState) (ExpressionToken, error, bool) {
-	var ret ExpressionToken
+func readToken(stream *lexerStream, state lexerState) (expressionToken, error, bool) {
+	var ret expressionToken
 	var tokenValue interface{}
 	var tokenTime time.Time
 	var tokenString string
-	var kind TokenKind
+	var kind tokenKind
 	var character rune
 	var found bool
 	var completed bool
 	var err error
 
-	// numeric is 0-9, or . or 0x followed by digits
+	// numericToken is 0-9, or . or 0x followed by digits
 	// string starts with '
 	// variable is alphanumeric, always starts with a letter
 	// bracket always means variable
@@ -82,9 +82,9 @@ func readToken(stream *lexerStream, state lexerState) (ExpressionToken, error, b
 			continue
 		}
 
-		kind = UNKNOWN
+		kind = unknownToken
 
-		// numeric constant
+		// numericToken constant
 		if isNumeric(character) {
 
 			if stream.canRead() && character == '0' {
@@ -96,10 +96,10 @@ func readToken(stream *lexerStream, state lexerState) (ExpressionToken, error, b
 
 					if err != nil {
 						errorMsg := fmt.Sprintf("Unable to parse hex value '%v' to uint64\n", tokenString)
-						return ExpressionToken{}, errors.New(errorMsg), false
+						return expressionToken{}, errors.New(errorMsg), false
 					}
 
-					kind = NUMERIC
+					kind = numericToken
 					tokenValue = float64(tokenValueInt)
 					break
 				} else {
@@ -111,10 +111,10 @@ func readToken(stream *lexerStream, state lexerState) (ExpressionToken, error, b
 			tokenValue, err = strconv.ParseFloat(tokenString, 64)
 
 			if err != nil {
-				errorMsg := fmt.Sprintf("Unable to parse numeric value '%v' to float64\n", tokenString)
-				return ExpressionToken{}, errors.New(errorMsg), false
+				errorMsg := fmt.Sprintf("Unable to parse numericToken value '%v' to float64\n", tokenString)
+				return expressionToken{}, errors.New(errorMsg), false
 			}
-			kind = NUMERIC
+			kind = numericToken
 			break
 		}
 
@@ -124,18 +124,18 @@ func readToken(stream *lexerStream, state lexerState) (ExpressionToken, error, b
 			tokenString = readTokenUntilFalse(stream, isVariableName)
 
 			tokenValue = tokenString
-			kind = VARIABLE
+			kind = variableToken
 
-			// boolean?
+			// booleanToken?
 			if tokenValue == "true" {
 
-				kind = BOOLEAN
+				kind = booleanToken
 				tokenValue = true
 			} else {
 
 				if tokenValue == "false" {
 
-					kind = BOOLEAN
+					kind = booleanToken
 					tokenValue = false
 				}
 			}
@@ -146,7 +146,7 @@ func readToken(stream *lexerStream, state lexerState) (ExpressionToken, error, b
 			tokenValue, completed = readUntilFalse(stream, true, false, true, isNotQuote)
 
 			if !completed {
-				return ExpressionToken{}, errors.New("Unclosed string literal"), false
+				return expressionToken{}, errors.New("Unclosed string literal"), false
 			}
 
 			// advance the stream one position, since reading until false assumes the terminator is a real token
@@ -155,23 +155,23 @@ func readToken(stream *lexerStream, state lexerState) (ExpressionToken, error, b
 			// check to see if this can be parsed as a time.
 			tokenTime, found = tryParseTime(tokenValue.(string))
 			if found {
-				kind = TIME
+				kind = timeToken
 				tokenValue = tokenTime
 			} else {
-				kind = STRING
+				kind = stringToken
 			}
 			break
 		}
 
 		if character == '(' {
 			tokenValue = character
-			kind = CLAUSE
+			kind = clauseToken
 			break
 		}
 
 		if character == ')' {
 			tokenValue = character
-			kind = CLAUSE_CLOSE
+			kind = clauseCloseToken
 			break
 		}
 
@@ -181,11 +181,11 @@ func readToken(stream *lexerStream, state lexerState) (ExpressionToken, error, b
 
 		// quick hack for the case where "-" can mean "prefixed negation" or "minus", which are used
 		// very differently.
-		if state.canTransitionTo(PREFIX) {
+		if state.canTransitionTo(prefixToken) {
 			_, found = prefixSymbols[tokenString]
 			if found {
 
-				kind = PREFIX
+				kind = prefixToken
 				break
 			}
 		}
@@ -193,14 +193,14 @@ func readToken(stream *lexerStream, state lexerState) (ExpressionToken, error, b
 		_, found = logicalSymbols[tokenString]
 		if found {
 
-			kind = LOGICALOP
+			kind = logicalToken
 			break
 		}
 
 		_, found = comparatorSymbols[tokenString]
 		if found {
 
-			kind = COMPARATOR
+			kind = compareToken
 			break
 		}
 
@@ -211,7 +211,7 @@ func readToken(stream *lexerStream, state lexerState) (ExpressionToken, error, b
 	ret.Kind = kind
 	ret.Value = tokenValue
 
-	return ret, nil, kind != UNKNOWN
+	return ret, nil, kind != unknownToken
 }
 
 func readTokenUntilFalse(stream *lexerStream, condition func(rune) bool) string {
@@ -273,10 +273,10 @@ func readUntilFalse(stream *lexerStream, includeWhitespace bool, breakWhitespace
 /*
 	Checks the balance of tokens which have multiple parts, such as parenthesis.
 */
-func checkBalance(tokens []ExpressionToken) error {
+func checkBalance(tokens []expressionToken) error {
 
 	var stream *tokenStream
-	var token ExpressionToken
+	var token expressionToken
 	var parens int
 
 	stream = newTokenStream(tokens)
@@ -284,11 +284,11 @@ func checkBalance(tokens []ExpressionToken) error {
 	for stream.hasNext() {
 
 		token = stream.next()
-		if token.Kind == CLAUSE {
+		if token.Kind == clauseToken {
 			parens++
 			continue
 		}
-		if token.Kind == CLAUSE_CLOSE {
+		if token.Kind == clauseCloseToken {
 			parens--
 			continue
 		}

@@ -3,12 +3,12 @@ package esqb
 /*
 	Represents a single parsed token.
 */
-type ExpressionToken struct {
-	Kind  TokenKind
+type expressionToken struct {
+	Kind  tokenKind
 	Value interface{}
 }
 
-func (it *ExpressionToken) isOperator() bool {
-	return it.Kind == COMPARATOR || it.Kind == LOGICALOP ||
-		it.Kind == CLAUSE || it.Kind == CLAUSE_CLOSE
+func (it *expressionToken) isOperator() bool {
+	return it.Kind == compareToken || it.Kind == logicalToken ||
+		it.Kind == clauseToken || it.Kind == clauseCloseToken
 }

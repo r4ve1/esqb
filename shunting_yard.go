@@ -5,19 +5,19 @@ import (
 	"fmt"
 )
 
-func toSuffix(tokens []ExpressionToken) ([]ExpressionToken, error) {
-	var suffixExpression []ExpressionToken
-	var operators []ExpressionToken
+func toSuffix(tokens []expressionToken) ([]expressionToken, error) {
+	var suffixExpression []expressionToken
+	var operators []expressionToken
 	for _, token := range tokens {
 		if token.isOperator() {
-			if token.Kind == CLAUSE {
+			if token.Kind == clauseToken {
 				operators = append(operators, token)
-			} else if token.Kind == CLAUSE_CLOSE {
+			} else if token.Kind == clauseCloseToken {
 				clausePopped := false
 				for len(operators) > 0 {
 					op := operators[len(operators)-1]
 					operators = operators[:len(operators)-1]
-					if op.Kind == CLAUSE {
+					if op.Kind == clauseToken {
 						clausePopped = true
 						break
 					} else {
@@ -25,27 +25,27 @@ func toSuffix(tokens []ExpressionToken) ([]ExpressionToken, error) {
 					}
 				}
 				if !clausePopped {
-					return nil, errors.New("clause mismatch")
+					return nil, errors.New("clauseToken mismatch")
 				}
 			} else {
 				if _, ok := token.Value.(string); !ok {
-					return nil, fmt.Errorf("operator value is not str")
+					return nil, fmt.Errorf("Operator value is not str")
 				}
 				newOp, ok := operatorSymbols[token.Value.(string)]
 				if !ok {
-					return nil, fmt.Errorf("unknown op %v", token.Value)
+					return nil, fmt.Errorf("unknownToken op %v", token.Value)
 				}
 				for len(operators) > 0 {
 					top := operators[len(operators)-1]
-					if top.Kind == CLAUSE {
+					if top.Kind == clauseToken {
 						break
 					}
 					if _, ok = top.Value.(string); !ok {
-						return nil, fmt.Errorf("operator value is not str")
+						return nil, fmt.Errorf("Operator value is not str")
 					}
 					topOp, ok := operatorSymbols[top.Value.(string)]
 					if !ok {
-						return nil, fmt.Errorf("unknown op %v", top.Value)
+						return nil, fmt.Errorf("unknownToken op %v", top.Value)
 					}
 					if topOp.precedence() >= newOp.precedence() {
 						// pop
@@ -65,7 +65,7 @@ func toSuffix(tokens []ExpressionToken) ([]ExpressionToken, error) {
 		operator := operators[len(operators)-1]
 		operators = operators[:len(operators)-1]
 
-		if operator.Kind == CLAUSE {
+		if operator.Kind == clauseToken {
 			return nil, errors.New("mismatched parentheses found")
 		}
 		suffixExpression = append(suffixExpression, operator)
