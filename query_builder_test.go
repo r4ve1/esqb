@@ -9,7 +9,7 @@ import (
 )
 
 func TestQueryBuilder_Build(t *testing.T) {
-	factory := map[string]map[Operator]queryGenerator{
+	factory := map[string]map[Operator]QueryGenerator{
 		"ip": RangeQueryGenerators(func() *elastic.RangeQuery {
 			return elastic.NewRangeQuery("ip")
 		}),

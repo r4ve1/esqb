@@ -7,14 +7,14 @@ import (
 	"github.com/olivere/elastic/v7"
 )
 
-type queryGenerator func(value interface{}) elastic.Query
+type QueryGenerator func(value interface{}) elastic.Query
 
 type queryBuilder struct {
 	suffixTokens []expressionToken
-	queryFactory map[string]map[Operator]queryGenerator
+	queryFactory map[string]map[Operator]QueryGenerator
 }
 
-func NewQueryBuilder(expr string, queryFactory map[string]map[Operator]queryGenerator) (*queryBuilder, error) {
+func NewQueryBuilder(expr string, queryFactory map[string]map[Operator]QueryGenerator) (*queryBuilder, error) {
 	var err error
 	it := new(queryBuilder)
 	for _, generators := range queryFactory {
@@ -121,8 +121,8 @@ func (it *queryBuilder) genQuery(left, right interface{}, opToken string) (elast
 	}
 }
 
-func RangeQueryGenerators(getBaseQuery func() *elastic.RangeQuery) map[Operator]queryGenerator {
-	return map[Operator]queryGenerator{
+func RangeQueryGenerators(getBaseQuery func() *elastic.RangeQuery) map[Operator]QueryGenerator {
+	return map[Operator]QueryGenerator{
 		LT: func(value interface{}) elastic.Query {
 			return getBaseQuery().Lt(value)
 		},
