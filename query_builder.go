@@ -12,11 +12,16 @@ type QueryGenerator func(value interface{}) elastic.Query
 type queryBuilder struct {
 	suffixTokens []expressionToken
 	queryFactory map[string]map[Operator]QueryGenerator
+	queried      map[string]bool
 }
 
 func NewQueryBuilder(expr string, queryFactory map[string]map[Operator]QueryGenerator) (*queryBuilder, error) {
 	var err error
-	it := new(queryBuilder)
+	it := &queryBuilder{
+		queryFactory: queryFactory,
+		queried:      make(map[string]bool),
+	}
+	// NEQ is the opposite of EQ
 	for _, generators := range queryFactory {
 		if _, ok := generators[EQ]; ok {
 			eqGenerator := generators[EQ]
@@ -25,44 +30,43 @@ func NewQueryBuilder(expr string, queryFactory map[string]map[Operator]QueryGene
 			}
 		}
 	}
-	it.queryFactory = queryFactory
 	tokens, err := scanTokens(expr)
 	if err != nil {
 		return nil, err
 	}
-	it.suffixTokens, err = toSuffix(tokens)
+	it.suffixTokens, err = convertToSuffix(tokens)
 	if err != nil {
 		return nil, err
 	}
 	return it, nil
 }
 
-func (it *queryBuilder) Build() (elastic.Query, error) {
+func (it *queryBuilder) Build() (elastic.Query, map[string]bool, error) {
 	var stack []expressionToken
 	for _, token := range it.suffixTokens {
 		if !token.isOperator() {
 			stack = append(stack, token)
 		} else {
 			if len(stack) < 2 {
-				return nil, errors.New("missing operands")
+				return nil, nil, errors.New("missing operands")
 			}
 			left, right := stack[len(stack)-2], stack[len(stack)-1]
 			stack = stack[:len(stack)-2]
-			query, err := it.genQuery(left, right, token.Value.(string))
+			query, err := it.buildSubQuery(left, right, token.Value.(string))
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			stack = append(stack, expressionToken{Kind: esQueryToken, Value: query})
 		}
 	}
 	if len(stack) != 1 {
-		return nil, errors.New("query build failed")
+		return nil, nil, errors.New("query build failed")
 	} else {
-		return stack[len(stack)-1].Value.(elastic.Query), nil
+		return stack[len(stack)-1].Value.(elastic.Query), it.queried, nil
 	}
 }
 
-func (it *queryBuilder) genQuery(left, right expressionToken, opToken string) (elastic.Query, error) {
+func (it *queryBuilder) buildSubQuery(left, right expressionToken, opToken string) (elastic.Query, error) {
 	if op, ok := comparatorSymbols[opToken]; ok {
 		// if comparator, then left should be field tag
 		if left.Kind == variableToken {
@@ -80,6 +84,7 @@ func (it *queryBuilder) genQuery(left, right expressionToken, opToken string) (e
 				op = LT
 			}
 			field := right.Value.(string)
+			it.queried[field] = true
 			return skipIfFieldNotExist(field, it.queryFactory[field][op](left.Value)), nil
 		} else {
 			return nil, errors.New("field or value invalid")

@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func toSuffix(tokens []expressionToken) ([]expressionToken, error) {
+func convertToSuffix(tokens []expressionToken) ([]expressionToken, error) {
 	var suffixExpression []expressionToken
 	var operators []expressionToken
 	for _, token := range tokens {
