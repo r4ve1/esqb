@@ -10,17 +10,25 @@ import (
 
 func TestQueryBuilder_Build(t *testing.T) {
 	factory := map[string]map[Operator]QueryGenerator{
-		"ip": RangeQueryGenerators(func() *elastic.RangeQuery {
-			return elastic.NewRangeQuery("ip")
-		}),
+		"ip": RangeQueryGenerators("ip", true, "nest"),
 		"title": {
-			EQ: func(value interface{}) elastic.Query {
-				return elastic.NewMatchQuery("title", value)
+			EQ: QueryGenerator{
+				Factory: func(field string, value interface{}) elastic.Query {
+					return elastic.NewMatchQuery(field, value)
+				},
+				Field:    "title",
+				IsNested: false,
+				NestPath: "",
 			},
 		},
 		"organization": {
-			EQ: func(value interface{}) elastic.Query {
-				return elastic.NewMatchQuery("org", value)
+			EQ: QueryGenerator{
+				Factory: func(field string, value interface{}) elastic.Query {
+					return elastic.NewMatchQuery(field, value)
+				},
+				Field:    "org",
+				IsNested: false,
+				NestPath: "",
 			},
 		},
 	}
@@ -29,10 +37,11 @@ func TestQueryBuilder_Build(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	query, err := qb.Build()
+	query, queried, err := qb.Build()
 	if err != nil {
 		t.Fatal(err)
 	}
 	data, _ := json.MarshalIndent(elastic.NewSearchSource().Query(query), "", " ")
 	fmt.Println(string(data))
+	fmt.Println(queried)
 }

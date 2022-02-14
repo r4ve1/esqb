@@ -1,4 +1,4 @@
-module github.com/r4ve1/esqb/v2
+module github.com/r4ve1/esqb/v3
 
 go 1.17
 
